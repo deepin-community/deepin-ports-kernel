@@ -1,0 +1,28 @@
+CC_ARCH=aarch64
+
+KERNEL_GIT=https://github.com/torvalds/linux.git
+KERNEL_BRANCH=v7.3
+KERNEL_DEFCONFIG=cix_defconfig
+
+CIX_PATCHSET_GIT=https://github.com/cixtech/cix-linux-main.git
+CIX_PATCHSET_REF=main
+CIX_PATCHSET_VERSION=7.3
+
+PKG_DEPS=(rsync)
+
+function override_patch() {
+	git clone --depth=1 -b $CIX_PATCHSET_REF $CIX_PATCHSET_GIT $BASEDIR/work/cix-linux-main
+
+	git config user.name "$KBUILD_BUILD_USER"
+	git config user.email "$KBUILD_BUILD_EMAIL"
+
+	# LC_ALL=C keeps the order stable
+	mapfile -t patches < <(printf '%s\n' "$BASEDIR"/work/cix-linux-main/patches-"$CIX_PATCHSET_VERSION"/*.patch | LC_ALL=C sort)
+
+	for patchfile in "${patches[@]}"; do
+		git am "$patchfile" || exit 1
+	done
+
+	cp $BASEDIR/work/cix-linux-main/config/config-$CIX_PATCHSET_VERSION.defconfig \
+		arch/arm64/configs/cix_defconfig
+}
